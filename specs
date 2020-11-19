@@ -1,0 +1,64 @@
+This is a specification for fsl - the filesystem based programming language.
+	== glossary ==
+
+ - node, filesystem node: any type of file (regular file, directory, link, socket, fifo,
+block device, character device)
+ - next, previous, first last file - see file sorting
+
+	== "memory model" ==
+
+Fsl's doesn't use memory in a conventional way. Instead all data and code is
+stored on a file system as files and directories.
+
+//TODO filesystem type
+
+	== registers ==
+
+Fsl has 3 registers:
+ - Instruction pointer (IP) - marks the next instruction (file) to be executed
+ - Data pointer (DP) - used for directory modification
+ - Output pointer (OP) - used for file reading and writing
+These 3 registers are saved after each instruction to directory named '='
+as symlinks.
+
+	== file sorting ==
+
+Files in directories are sorted as if each filename was interpreted as unsigned
+big endian integer.
+
+	== instructions ==
+
+Each filesystem node is considered to be an instruction. Instruction
+is decoded based on last byte of a filename:
+'>' set DP to next file (do nothing if there is no next file)
+'<' set DP to previous file (do nothing if there is no previous file)
+'$' set DP to the last file in directory
+'^' set DP into directory (if file at dp is not a directory or is empty do
+	nothing)
+'_' set DP one level up (if file at DP is '/' do nothing)
+
+'}' set OP to next file (do nothing if there is no next file)
+'{' set OP to previous file (do nothing if there is no previous file)
+'`' set OP into directory (if file at OP is not a directory or is empty do
+	nothing)
+',' set OP one level up (if file at OP is '/' do nothing)
+
+'&' set OP to DP
+'%' set DP to OP
+//TODO make copying from each to each?
+
+//TODO what if not a file
+'o' output number of subdirectories at DP (mod 256) as byte to file at OP
+'i' take byte from OP and create that much subdirectories (as '*' would) at DP
+
+'?' skip executing directory if DP is empty
+'+' execute directory until DP is not empty
+'=' ignore directory
+
+'*' create directory with lowest name possible in DP
+'x' delete directory at DP and move DP one directory up
+'X' delete first directory in DP
+
+'!' terminate program
+any other ending byte - nop
+
