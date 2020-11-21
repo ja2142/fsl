@@ -11,18 +11,6 @@ from dirpointer import DirPointer
 from instructions import instructions
 from str_bytes import *
 
-def path_to_str_or_bytes(path):
-    try:
-        return str(path).encode('utf8').decode('utf8')
-    except UnicodeEncodeError:
-        return bytes(path)
-
-def str_to_str_or_bytes(s):
-    try:
-        return str(s).encode('utf8').decode('utf8')
-    except UnicodeEncodeError:
-        return os.fsencode(s)
-
 def log_state(ip, dp, op):
     ip_path = path_to_str_or_bytes(ip.path)
     dp_path = path_to_str_or_bytes(dp.path)
