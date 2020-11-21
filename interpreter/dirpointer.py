@@ -21,8 +21,8 @@ def path_index_to_name(i):
 
 class DirPointer:
     def __init__(self, directory='.'):
-        self.path = pathlib.Path(directory).resolve()
-    
+        self.path = pathlib.Path(directory)    
+
     def get_child_count(self):
         if not self.path.is_dir():
             return 0

@@ -31,27 +31,57 @@ def wait_for_return():
         pass
 
 def load_register(reg_path, default):
+    reg = default
     if reg_path.is_symlink():
         reg = os.readlink(reg_path)
     else:
         if reg_path.exists():
             raise RuntimeError('{} exists and is not a symlink'.format(reg_path))
         os.symlink(default, reg_path)
-    return default
+    return reg
 
-def load_state(directory):
-    directory = DirPointer(os.path.abspath(directory))
-    regs_dir = directory.path / '='
+def save_register(reg_path, reg):
+    reg_path.unlink(missing_ok=True)
+    os.symlink(reg.path, reg_path)
+
+def load_state(run_directory):
+    run_directory = DirPointer(run_directory)
+    regs_dir = run_directory.path / '='
     if not regs_dir.exists():
         regs_dir.mkdir()
     IP_path = regs_dir / 'IP'
     DP_path = regs_dir / 'DP'
     OP_path = regs_dir / 'OP'
-    directory.into()
-    ip = DirPointer(load_register(IP_path, directory.path))
-    dp = DirPointer(load_register(DP_path, directory.path))
-    op = DirPointer(load_register(OP_path, directory.path))
+    run_directory.into()
+    ip = DirPointer(load_register(IP_path, run_directory.path))
+    dp = DirPointer(load_register(DP_path, run_directory.path))
+    op = DirPointer(load_register(OP_path, run_directory.path))
     return (ip, dp, op)
+
+def save_state(ip, dp, op, run_directory):
+    regs_dir = run_directory / '='
+    IP_path = regs_dir / 'IP'
+    DP_path = regs_dir / 'DP'
+    OP_path = regs_dir / 'OP'
+    save_register(IP_path, ip)
+    save_register(DP_path, dp)
+    save_register(OP_path, op)
+
+def step(args):
+    #run_directory = pathlib.Path(os.path.abspath(args.directory))
+    run_directory = pathlib.Path(args.directory)
+    ip, dp, op = load_state(run_directory)
+    instruction = ip.get_instruction()
+    if args.log:
+        log_state(ip, dp, op)
+    if args.step:
+        wait_for_return()
+    if instruction in instructions:
+        ip, dp, op = instructions[instruction][0](ip, dp, op)
+    else:
+        ip.next_instruction()
+    save_state(ip, dp, op, run_directory)
+    return instruction != '!'
 
 def main():
     parser = argparse.ArgumentParser(description='fsl++# interpreter. CAUTION: MIGHT DELETE FILES AND DIRECTORIES!')
@@ -60,28 +90,13 @@ def main():
     parser.add_argument('-c', '--instruction-count', help='execute at most n instructions', type=int, default=1000)
     parser.add_argument('directory', help='directory to be executed')
     args = parser.parse_args()
-    ip2, dp2, op2 = load_state(args.directory)
-    log_state(ip2, dp2, op2)
-    ip = DirPointer(args.directory)
-    ip.into()
-    dp = copy.deepcopy(ip)
-    op = copy.deepcopy(ip)
-    instruction = ''
     instruction_limit = args.instruction_count
-    while instruction != '!':
-        instruction = ip.get_instruction()
-        if args.log:
-            log_state(ip, dp, op)
-        if args.step:
-            wait_for_return()
-        if instruction in instructions:
-            ip, dp, op = instructions[instruction][0](ip, dp, op)
-        else:
-            ip.next_instruction()
+    running = True
+    while running:
+        running = step(args)
         instruction_limit -= 1
         if instruction_limit <= 0:
-            break
-
+            running = False
 
 if __name__ == '__main__':
     main()
